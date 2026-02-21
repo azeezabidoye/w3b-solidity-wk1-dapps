@@ -6,16 +6,14 @@ import {Todo} from "../src/Todo.sol";
 import {ERC20} from "../src/ERC20.sol";
 import {SaveEther} from "../src/SaveEther.sol";
 import {SaveAsset} from "../src/SaveAsset.sol";
-
-// import {SchoolManagement} from "../src/SchMgmt.sol";
+import {SchoolManagement} from "../src/SchMgmt.sol";
 
 contract DeployScript is Script {
     Todo public todo;
     ERC20 public erc20;
     SaveEther public saveEther;
     SaveAsset public saveAsset;
-
-    // SchoolManagement public schoolManagement;
+    SchoolManagement public schoolManagement;
 
     function setUp() public {}
 
@@ -26,7 +24,7 @@ contract DeployScript is Script {
         erc20 = new ERC20();
         saveEther = new SaveEther();
         saveAsset = new SaveAsset(address(erc20));
-        // schoolManagement = new SchoolManagement();
+        schoolManagement = new SchoolManagement(address(erc20));
 
         vm.stopBroadcast();
     }

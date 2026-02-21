@@ -1,141 +1,260 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity ^0.8.3;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.3;
 
-// contract SchoolManagement {
-//     address public owner; // Deployer/Admin address
-//     uint256 public totalFees; // Total balance of the school fund
+interface IERC20 {
+    function name() external view returns (string memory);
 
-//     struct Student {
-//         string studentName;
-//         uint256 grade;
-//         bool hasPaid;
-//         uint256 paidTimestamp;
-//     }
+    function symbol() external view returns (string memory);
 
-//     struct Staff {
-//         string staffName;
-//         bool isRegistered;
-//         bool salaryPaid;
-//         uint256 salaryTimestamp;
-//     }
+    function decimals() external view returns (uint8);
 
-//     mapping(address => Student) public students;
-//     address[] public studentList;
+    function totalSupply() external view returns (uint256);
 
-//     mapping(address => Staff) public staff;
-//     address[] public staffList;
+    function balanceOf(address _owner) external view returns (uint256 balance);
 
-//     mapping(uint256 => uint256) public gradeFees;
+    function transfer(
+        address _to,
+        uint256 _value
+    ) external returns (bool success);
 
-//     constructor() {
-//         owner = msg.sender;
-//         gradeFees[100] = 0.1 ether; // 0.1 ETH.
-//         gradeFees[200] = 0.2 ether;
-//         gradeFees[300] = 0.3 ether;
-//         gradeFees[400] = 0.4 ether;
-//     }
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    ) external returns (bool success);
 
-//     modifier onlyOwner() {
-//         require(msg.sender == owner, "Only school admin");
-//         _;
-//     }
+    function approve(
+        address _spender,
+        uint256 _value
+    ) external returns (bool success);
 
-//     // EVENTS
-//     event StudentRegistered(
-//         address indexed student,
-//         string name,
-//         uint256 grade
-//     );
-//     event FeesPaid(address indexed student, uint256 amount, uint256 timestamp);
-//     event StaffRegistered(address indexed staff, string name);
-//     event SalaryPaid(address indexed staff, uint256 amount, uint256 timestamp);
+    function allowance(
+        address _owner,
+        address _spender
+    ) external view returns (uint256 remaining);
+}
 
-//     function registerStudent(
-//         string memory _studentName,
-//         uint256 _grade
-//     ) public payable {
-//         require(
-//             _grade >= 100 && _grade <= 400 && _grade % 100 == 0,
-//             "Grade not valid"
-//         );
+contract SchoolManagement {
+    address tokenAddress;
+    address public owner; // Deployer's address
+    uint256 public totalFeesETH; // Total balance of the school fund in Ether
+    uint256 public totalFeesERC20; // Total balance of the school fund in ERC20
 
-//         // Define school fess
-//         uint256 schoolFees = gradeFees[_grade];
-//         require(msg.value == schoolFees, "Exact school fee required");
-//         require(
-//             students[msg.sender].hasPaid == false,
-//             "Student already registered"
-//         );
+    struct Student {
+        string studentName;
+        uint256 grade;
+        bool hasPaid;
+        uint256 paidTimestamp;
+    }
 
-//         // Register new student
-//         students[msg.sender] = Student({
-//             studentName: _studentName,
-//             grade: _grade,
-//             hasPaid: true,
-//             paidTimestamp: block.timestamp
-//         });
-//         studentList.push(msg.sender);
+    struct Staff {
+        string staffName;
+        bool isRegistered;
+        bool salaryPaid;
+        bool isSuspended;
+        uint256 salaryTimestamp;
+    }
 
-//         // Add schools to school account
-//         totalFees = totalFees + msg.value;
+    mapping(address => Student) public students;
+    address[] public studentList;
 
-//         // Log registration & school fess payment events
-//         emit StudentRegistered(msg.sender, _studentName, _grade);
-//         emit FeesPaid(msg.sender, msg.value, block.timestamp);
-//     }
+    mapping(address => Staff) public staff;
+    address[] public staffList;
 
-//     function registerStaff(
-//         address _staffAcct,
-//         string memory _staffName
-//     ) public onlyOwner {
-//         require(staff[_staffAcct].salaryPaid == false, "Already registered");
+    mapping(uint256 => uint256) public gradeFees;
 
-//         // Register new Staff
-//         staff[_staffAcct] = Staff({
-//             staffName: _staffName,
-//             isRegistered: true,
-//             salaryPaid: false,
-//             salaryTimestamp: 0
-//         });
-//         staffList.push(_staffAcct);
+    constructor(address _tokenAddress) {
+        owner = msg.sender;
+        tokenAddress = _tokenAddress;
+        gradeFees[100] = 0.1 ether; // 0.1 ETH.
+        gradeFees[200] = 0.2 ether;
+        gradeFees[300] = 0.3 ether;
+        gradeFees[400] = 0.4 ether;
+    }
 
-//         // Log registration
-//         emit StaffRegistered(_staffAcct, _staffName);
-//     }
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only school admin");
+        _;
+    }
 
-//     function payStaffSalary(
-//         address _staffAcct,
-//         uint256 _salaryAmount
-//     ) public payable onlyOwner {
-//         require(staff[_staffAcct].isRegistered, "Staff not registered");
-//         require(!staff[_staffAcct].salaryPaid, "Salary already paid");
-//         require(msg.value >= _salaryAmount, "Insufficient school funds");
+    // EVENTS
+    event StudentRegistered(
+        address indexed student,
+        string name,
+        uint256 grade
+    );
+    event FeesPaid(address indexed student, uint256 amount, uint256 timestamp);
+    event StaffRegistered(address indexed staff, string name);
+    event SalaryPaid(address indexed staff, uint256 amount, uint256 timestamp);
+    event StaffSuspended(address indexed staff);
 
-//         // Pay Staff
-//         staff[_staffAcct].salaryPaid = true;
-//         staff[_staffAcct].salaryTimestamp = block.timestamp;
+    function registerStudentETH(
+        string memory _studentName,
+        uint256 _grade
+    ) public payable {
+        require(
+            _grade >= 100 && _grade <= 400 && _grade % 100 == 0,
+            "Grade not valid"
+        );
 
-//         totalFees = totalFees - _salaryAmount;
+        // Define school fess
+        uint256 schoolFees = gradeFees[_grade];
+        require(msg.value == schoolFees, "Exact school fee required");
+        require(
+            students[msg.sender].hasPaid == false,
+            "Student already registered"
+        );
 
-//         // Pay using call() method
-//         (bool success, ) = _staffAcct.call{value: _salaryAmount}("");
-//         require(success, "Payment failed");
+        // Register new student
+        students[msg.sender] = Student({
+            studentName: _studentName,
+            grade: _grade,
+            hasPaid: true,
+            paidTimestamp: block.timestamp
+        });
+        studentList.push(msg.sender);
 
-//         // Log event for salary payment
-//         emit SalaryPaid(_staffAcct, _salaryAmount, block.timestamp);
-//     }
+        // Add schools to school account
+        totalFeesETH = totalFeesETH + msg.value;
 
-//     function resetStaffSalary(address _staffAcct) public onlyOwner {
-//         require(staff[_staffAcct].isRegistered, "Staff not registered");
+        // Log registration & school fess payment events
+        emit StudentRegistered(msg.sender, _studentName, _grade);
+        emit FeesPaid(msg.sender, msg.value, block.timestamp);
+    }
 
-//         staff[_staffAcct].salaryPaid = false;
-//     }
+    function registerStaff(
+        address _staffAcct,
+        string memory _staffName
+    ) public onlyOwner {
+        require(staff[_staffAcct].salaryPaid == false, "Already registered");
 
-//     function getAllStudents() external view returns (address[] memory) {
-//         return studentList;
-//     }
+        // Register new Staff
+        staff[_staffAcct] = Staff({
+            staffName: _staffName,
+            isRegistered: true,
+            salaryPaid: false,
+            isSuspended: false,
+            salaryTimestamp: 0
+        });
+        staffList.push(_staffAcct);
 
-//     function getAllStaff() external view returns (address[] memory) {
-//         return staffList;
-//     }
-// }
+        // Log registration
+        emit StaffRegistered(_staffAcct, _staffName);
+    }
+
+    function suspendStaff(address _staffAcct) public onlyOwner {
+        require(staff[_staffAcct].isRegistered, "Staff not registered");
+        require(!staff[_staffAcct].isSuspended, "Staff already suspended");
+        staff[_staffAcct].isSuspended = true;
+        emit StaffSuspended(_staffAcct);
+    }
+
+    function payStaffSalaryETH(
+        address _staffAcct,
+        uint256 _salaryAmount
+    ) public payable onlyOwner {
+        require(staff[_staffAcct].isRegistered, "Staff not registered");
+        require(!staff[_staffAcct].salaryPaid, "Salary already paid");
+        require(!staff[_staffAcct].isSuspended, "Staff already suspended");
+        require(msg.value >= _salaryAmount, "Insufficient school funds");
+
+        // Pay Staff
+        staff[_staffAcct].salaryPaid = true;
+        staff[_staffAcct].salaryTimestamp = block.timestamp;
+
+        totalFeesETH = totalFeesETH - _salaryAmount;
+
+        // Pay using call() method
+        (bool success, ) = _staffAcct.call{value: _salaryAmount}("");
+        require(success, "Payment failed");
+
+        // Log event for salary payment
+        emit SalaryPaid(_staffAcct, _salaryAmount, block.timestamp);
+    }
+
+    function resetStaffSalary(address _staffAcct) public onlyOwner {
+        require(staff[_staffAcct].isRegistered, "Staff not registered");
+
+        staff[_staffAcct].salaryPaid = false;
+    }
+
+    function getAllStudents() external view returns (address[] memory) {
+        return studentList;
+    }
+
+    function getAllStaff() external view returns (address[] memory) {
+        return staffList;
+    }
+
+    function registerStudentERC20(
+        string memory _studentName,
+        uint256 _grade,
+        uint256 _amount
+    ) public {
+        require(
+            _grade >= 100 && _grade <= 400 && _grade % 100 == 0,
+            "Grade not valid"
+        );
+
+        // Define school fess
+        uint256 schoolFees = gradeFees[_grade];
+        require(_amount == schoolFees, "Exact school fee required");
+        require(
+            students[msg.sender].hasPaid == false,
+            "Student already registered"
+        );
+
+        // Register new student
+        students[msg.sender] = Student({
+            studentName: _studentName,
+            grade: _grade,
+            hasPaid: true,
+            paidTimestamp: block.timestamp
+        });
+        studentList.push(msg.sender);
+
+        // Add schools to school account
+        totalFeesERC20 = totalFeesERC20 + _amount;
+
+        // Students pays using ZTK (ERC20) Token
+        bool regStudentFee = IERC20(tokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+        require(regStudentFee, "Failed to pay school fees");
+
+        // Log registration & school fess payment events
+        emit StudentRegistered(msg.sender, _studentName, _grade);
+        emit FeesPaid(msg.sender, _amount, block.timestamp);
+    }
+
+    function payStaffSalaryERC20(
+        address _staffAcct,
+        uint256 _salaryAmount
+    ) public onlyOwner {
+        require(staff[_staffAcct].isRegistered, "Staff not registered");
+        require(!staff[_staffAcct].salaryPaid, "Salary already paid");
+        require(!staff[_staffAcct].isSuspended, "Staff already suspended");
+        require(_salaryAmount < totalFeesERC20, "Insufficient school funds");
+
+        // Pay Staff
+        staff[_staffAcct].salaryPaid = true;
+        staff[_staffAcct].salaryTimestamp = block.timestamp;
+
+        totalFeesERC20 = totalFeesERC20 - _salaryAmount;
+
+        // Pay using call() method
+        // (bool success, ) = _staffAcct.call{value: _salaryAmount}("");
+        // require(success, "Payment failed");
+
+        bool paySalarySuccess = IERC20(tokenAddress).transfer(
+            _staffAcct,
+            _salaryAmount
+        );
+        require(paySalarySuccess, "Payment failed");
+
+        // Log event for salary payment
+        emit SalaryPaid(_staffAcct, _salaryAmount, block.timestamp);
+    }
+}
